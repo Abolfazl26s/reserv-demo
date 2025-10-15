@@ -784,10 +784,11 @@
                 toastNode.className = 'text-white p-4';
 
                 const formattedTime = newReservation.start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-                const formattedDate = newReservation.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                const formattedDate = newReservation.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
                 toastNode.innerHTML = `
                     <p class="font-bold text-lg mb-2">Confirm Reservation?</p>
+                    <p><span class="font-semibold">ID:</span> #${newReservation.id}</p>
                     <p><span class="font-semibold">Name:</span> ${newReservation.name}</p>
                     <p><span class="font-semibold">Date:</span> ${formattedDate}</p>
                     <p><span class="font-semibold">Time:</span> ${formattedTime}</p>
@@ -820,7 +821,18 @@
                 confirmBtn.addEventListener('click', () => {
                     reservations.push(newReservation);
                     reservations.sort((a, b) => a.start - b.start);
+
+                    displayDate = newReservation.start;
+                    currentZoomIndex = 0; // Go to day view
                     renderCalendar();
+
+                    // Scroll to the new reservation
+                    setTimeout(() => {
+                        const minutesFromStart = (newReservation.start.getHours() - START_HOUR) * 60 + newReservation.start.getMinutes();
+                        const topPos = (minutesFromStart / 60) * 90;
+                        dom.timelineView.scrollTo({ top: topPos - 30, behavior: 'smooth' });
+                    }, 100);
+
                     dom.cancelFormBtn.click();
                     toast.hideToast();
                 });
@@ -898,6 +910,74 @@
 
                 showConfirmationToast(newReservation);
             });
+
+            const calendarBody = document.getElementById('calendar-body');
+            let touchStartX = 0;
+            let touchEndX = 0;
+            const swipeThreshold = 50; // Minimum distance for a swipe
+
+            calendarBody.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+            }, { passive: true });
+
+            calendarBody.addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                handleSwipe();
+            }, { passive: true });
+
+            let initialPinchDistance = null;
+            const pinchThreshold = 30;
+
+            calendarBody.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    initialPinchDistance = Math.hypot(
+                        e.touches[0].pageX - e.touches[1].pageX,
+                        e.touches[0].pageY - e.touches[1].pageY
+                    );
+                }
+            }, { passive: true });
+
+            calendarBody.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 2 && initialPinchDistance !== null) {
+                    const currentPinchDistance = Math.hypot(
+                        e.touches[0].pageX - e.touches[1].pageX,
+                        e.touches[0].pageY - e.touches[1].pageY
+                    );
+
+                    const distanceChange = currentPinchDistance - initialPinchDistance;
+
+                    if (Math.abs(distanceChange) > pinchThreshold) {
+                        if (distanceChange > 0) {
+                            dom.zoomOutBtn.click();
+                        } else {
+                            dom.zoomInBtn.click();
+                        }
+                        initialPinchDistance = currentPinchDistance;
+                    }
+                }
+            }, { passive: true });
+
+            calendarBody.addEventListener('touchend', (e) => {
+                if (e.touches.length < 2) {
+                    initialPinchDistance = null;
+                }
+            }, { passive: true });
+
+
+            function handleSwipe() {
+                const swipeDistance = touchEndX - touchStartX;
+                if (Math.abs(swipeDistance) > swipeThreshold) {
+                    if (swipeDistance > 0) {
+                        // Swiped Right (L-to-R) -> Previous
+                        navigate('prev');
+                    } else {
+                        // Swiped Left (R-to-L) -> Next
+                        navigate('next');
+                    }
+                }
+            }
+
+
             window.addEventListener('resize', renderCalendar);
 
             // --- INITIALIZATION ---
