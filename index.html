@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reservation Management UI</title>
+    <script src="https://cdn.tailwindcss.com/3.4.1"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+
+        /* slate-800 */
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+
+        /* slate-600 */
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        /* slate-500 */
+
+        .calendar-header {
+            position: sticky;
+            top: 0;
+            background-color: #1e293b;
+            z-index: 10;
+            border-bottom: 1px solid #334155;
+        }
+
+        /* New Reservation Note Style */
+        .reservation-note {
+            position: absolute;
+            background-color: #fefce8;
+            /* yellow-50 */
+            color: #3f3f46;
+            /* zinc-700 */
+            padding: 8px;
+            border-radius: 4px;
+            box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.4);
+            transform: rotate(-2deg);
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+            border-bottom: 1px solid #eab308;
+            /* yellow-500 */
+        }
+
+        .reservation-note.large-party {
+            background-color: #bbf7d0;
+            /* green-200 */
+            border-bottom-color: #22c55e;
+            /* green-500 */
+        }
+
+        .reservation-note:hover {
+            transform: rotate(0deg) scale(1.05);
+            z-index: 50;
+        }
+
+        .reservation-pin {
+            position: absolute;
+            top: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #ef4444;
+            /* red-500 */
+            border: 1px solid white;
+            box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+        }
+
+        /* New Compact Reservation Style */
+        .reservation-compact {
+            position: absolute;
+            border-radius: 0.25rem;
+            padding: 0.25rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #14b8a6;
+            /* teal-500 */
+        }
+
+        /* New Tooltip Style */
+        #reservationTooltip {
+            position: fixed;
+            background-color: #0f172a;
+            /* slate-900 */
+            color: #e2e8f0;
+            /* slate-200 */
+            border: 1px solid #334155;
+            /* slate-700 */
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+            transition: opacity 0.2s;
+            pointer-events: none;
+            /* Allows clicks to pass through */
+        }
+
+        .year-view-container {
+            padding-bottom: 2rem;
+        }
+
+        .month-card {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .month-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+        }
+
+        .month-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            margin-top: 0.5rem;
+        }
+
+        .month-day {
+            text-align: center;
+            font-size: 0.75rem;
+            height: 24px;
+            line-height: 24px;
+            border-radius: 50%;
+            color: #cbd5e1;
+        }
+
+        /* slate-300 */
+        .day-header {
+            font-weight: bold;
+            color: #94a3b8;
+        }
+
+        /* slate-400 */
+        .day-reserved {
+            background-color: #14b8a6;
+            color: white;
+        }
+
+        /* teal-500 */
+        .grid-view-container,
+        .calendar-header-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+        }
+
+        .day-cell {
+            border-left: 1px solid #334155;
+            border-bottom: 1px solid #334155;
+            padding: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            position: relative;
+            min-height: 100px;
+            color: #e2e8f0;
+        }
+
+        /* slate-200 */
+        .day-cell:hover {
+            background-color: #334155;
+        }
+
+        .day-cell.other-month {
+            color: #64748b;
+        }
+
+        .reservations-list-container {
+            margin-top: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            overflow-y: auto;
+            max-height: calc(100% - 24px);
+        }
+
+        .week-view-reservation {
+            background-color: #fefce8;
+            color: #52525b;
+            font-size: 0.75rem;
+            padding: 2px 4px;
+            border-radius: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            border-left: 3px solid #f59e0b;
+        }
+
+        .month-check-icon {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            width: 28px;
+            height: 28px;
+            stroke: #ef4444;
+            /* red-500 */
+            stroke-width: 3;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .month-check-icon.animate path {
+            animation: draw-check 0.8s ease-in-out forwards;
+        }
+
+        @keyframes draw-check {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        /* Toastify Customization */
+        .toastify.toastify-center {
+            max-width: 500px;
+            width: 90%;
+            background: #1e293b;
+            /* slate-800 */
+            border: 1px solid #334155;
+            /* slate-700 */
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+
+<body class="bg-slate-900 h-screen">
+    <div class="flex h-full">
+        <!-- Sidebar -->
+        <aside id="sidebar"
+            class="fixed inset-y-0 left-0 z-40 w-[320px] bg-slate-800 border-r border-slate-700 p-6 flex flex-col transform -translate-x-full transition-transform duration-300 ease-in-out md:relative md:translate-x-0">
+            <button id="closeBtn"
+                class="absolute top-4 right-4 text-slate-400 hover:text-teal-400 transition-colors md:hidden">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+            <div class="text-center mb-6">
+                <div id="currentDate" class="text-lg font-semibold text-slate-300"></div>
+                <div id="currentTime" class="text-4xl font-bold text-teal-400"></div>
+            </div>
+
+            <!-- Navigation & Zoom Controls -->
+            <div class="mb-4 p-3 bg-slate-900 rounded-lg">
+                <div class="flex items-center justify-between mb-2">
+                    <span id="viewTitle" class="font-bold text-white">Calendar View</span>
+                    <span id="currentViewLabel" class="text-teal-400 font-semibold">Day</span>
+                </div>
+                <div class="flex items-center justify-between mb-4">
+                    <button id="prevBtn"
+                        class="bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-teal-400 p-2 rounded-full transition-colors"><svg
+                            xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd"
+                                d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+                                clip-rule="evenodd" />
+                        </svg></button>
+                    <div class="flex items-center space-x-2">
+                        <button id="zoomInBtn"
+                            class="bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-teal-400 p-2 rounded-full transition-colors"><svg
+                                xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3h-6" />
+                            </svg></button>
+                        <button id="zoomOutBtn"
+                            class="bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-teal-400 p-2 rounded-full transition-colors"><svg
+                                xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+                            </svg></button>
+                    </div>
+                    <button id="nextBtn"
+                        class="bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-teal-400 p-2 rounded-full transition-colors"><svg
+                            xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd"
+                                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                                clip-rule="evenodd" />
+                        </svg></button>
+                </div>
+            </div>
+
+            <button id="newReservationBtn"
+                class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-4 rounded-lg transition mb-4">New
+                Reservation</button>
+
+            <div id="reservationFormContainer"
+                class="hidden flex-grow overflow-auto bg-slate-900 p-4 rounded-lg border border-slate-700">
+                <h3 class="text-xl font-bold mb-4 text-white">New Reservation Form</h3>
+                <form id="reservationForm" class="space-y-4">
+                    <div><label for="reservationDate"
+                            class="block text-sm font-medium text-slate-300">Date</label><input type="date"
+                            id="reservationDate" required
+                            class="mt-1 block w-full bg-slate-700 border-slate-600 text-white rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-teal-500 focus:border-teal-500">
+                    </div>
+                    <div><label for="reservationTime"
+                            class="block text-sm font-medium text-slate-300">Time</label><input type="time"
+                            id="reservationTime" required
+                            class="mt-1 block w-full bg-slate-700 border-slate-600 text-white rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-teal-500 focus:border-teal-500">
+                    </div>
+                    <div><label for="numGuests" class="block text-sm font-medium text-slate-300">Number of
+                            Guests</label><input type="number" id="numGuests" min="1" value="1" required
+                            class="mt-1 block w-full bg-slate-700 border-slate-600 text-white rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-teal-500 focus:border-teal-500">
+                    </div>
+                    <div><label for="clientName" class="block text-sm font-medium text-slate-300">Full
+                            Name</label><input type="text" id="clientName" required
+                            class="mt-1 block w-full bg-slate-700 border-slate-600 text-white rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-teal-500 focus:border-teal-500">
+                    </div>
+                    <div><label for="phoneNumber" class="block text-sm font-medium text-slate-300">Phone
+                            Number</label><input type="tel" id="phoneNumber" required
+                            class="mt-1 block w-full bg-slate-700 border-slate-600 text-white rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-teal-500 focus:border-teal-500">
+                    </div>
+                    <div><label for="reservationCode" class="block text-sm font-medium text-slate-300">Reservation
+                            Code</label><input type="text" id="reservationCode" readonly
+                            class="mt-1 block w-full bg-slate-600 border-slate-500 text-slate-400 rounded-md shadow-sm py-2 px-3">
+                    </div>
+                    <div class="flex items-center"><input type="checkbox" id="notesCheckbox"
+                            class="h-4 w-4 rounded border-slate-500 bg-slate-700 text-teal-600 focus:ring-teal-500"><label
+                            for="notesCheckbox" class="ml-2 block text-sm text-slate-300">Notes</label></div>
+                    <div id="notesContainer" class="hidden"><label for="notesTextarea"
+                            class="block text-sm font-medium text-slate-300">Note Content</label><textarea
+                            id="notesTextarea" rows="3"
+                            class="mt-1 block w-full bg-slate-700 border-slate-600 text-white rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-teal-500 focus:border-teal-500"></textarea>
+                    </div>
+                    <div class="flex space-x-2 pt-4"><button type="submit"
+                            class="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg transition">Confirm</button><button
+                            type="button" id="cancelFormBtn"
+                            class="flex-1 bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded-lg transition">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </aside>
+
+        <!-- Main content -->
+        <main class="flex-1 flex flex-col h-full overflow-hidden">
+            <div class="p-4 border-b border-slate-700 md:hidden flex items-center justify-between flex-shrink-0">
+                <button id="menuBtn" class="text-slate-300 hover:text-teal-400 z-50 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+                <h1 class="text-lg font-bold text-white">Calendar</h1>
+                <div class="w-6"></div> <!-- Spacer -->
+            </div>
+            <div id="calendar-body" class="flex-1 relative flex flex-col overflow-hidden">
+                <div id="calendar-header" class="calendar-header flex-shrink-0">
+                    <div id="date-labels"></div>
+                </div>
+                <div id="timeline-view" class="flex-1 hidden overflow-auto pt-4">
+                    <div id="timeline-slots" class="timeline-body relative"></div>
+                </div>
+                <div id="grid-view" class="grid-view-container hidden flex-1 overflow-y-auto"></div>
+                <div id="year-view" class="year-view-container hidden flex-1 overflow-y-auto"></div>
+            </div>
+        </main>
+        <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 z-30 hidden md:hidden"></div>
+    </div>
+    <div id="reservationTooltip" class="hidden"></div>
+
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // --- CONFIG & STATE ---
+            const START_HOUR = 11;
+            const END_HOUR = 24; // Midnight
+
+            // FAKE DATA
+            const today = new Date();
+            const tomorrow = new Date();
+            tomorrow.setDate(today.getDate() + 1);
+            const futureDate = new Date();
+            futureDate.setFullYear(today.getFullYear() + 2, 9, 15); // Oct 15, 2 years from now
+            const anotherFutureDate = new Date();
+            anotherFutureDate.setFullYear(today.getFullYear() + 3, 4, 20); // May 20, 3 years from now
+
+            let reservations = [
+                { id: '1234', name: 'John Doe', guests: 4, phone: '555-1234', notes: 'Window seat preferred.', start: new Date(new Date(today).setHours(12, 0, 0, 0)), duration: 90 },
+                { id: '5678', name: 'Jane Smith', guests: 2, phone: '555-5678', notes: '', start: new Date(new Date(today).setHours(12, 15, 0, 0)), duration: 60 },
+                { id: '9101', name: 'Peter Jones', guests: 5, phone: '555-9101', notes: 'Birthday celebration.', start: new Date(new Date(today).setHours(12, 30, 0, 0)), duration: 45 },
+                { id: '1121', name: 'Alice Green', guests: 2, phone: '555-1121', notes: '', start: new Date(new Date(today).setHours(12, 45, 0, 0)), duration: 60 },
+                { id: '3141', name: 'Emily White', guests: 8, phone: '555-3141', notes: 'Need a high chair for a toddler.', start: new Date(new Date(today).setHours(15, 0, 0, 0)), duration: 120 },
+                { id: '5161', name: 'Michael Brown', guests: 3, phone: '555-5161', notes: 'Allergy to nuts.', start: new Date(new Date(tomorrow).setHours(14, 0, 0, 0)), duration: 75 },
+                { id: '7181', name: 'Mr. Alexander Fitzwilliam III', guests: 2, phone: '555-7181', notes: '', start: new Date(new Date(today).setHours(16, 0, 0, 0)), duration: 60 },
+                { id: '2026', name: 'Future Party', guests: 10, phone: '555-2026', notes: 'Planning ahead!', start: futureDate, duration: 180 },
+                { id: '2027', name: 'Another Future Party', guests: 5, phone: '555-2027', notes: '', start: anotherFutureDate, duration: 120 },
+            ];
+
+            let displayDate = new Date();
+            displayDate.setHours(0, 0, 0, 0);
+
+            const zoomLevels = ['Day', 'Week', 'Month', 'Year'];
+            let currentZoomIndex = 0; // Default to Day
+
+
+            const dom = {
+                sidebar: document.getElementById('sidebar'),
+                menuBtn: document.getElementById('menuBtn'),
+                closeBtn: document.getElementById('closeBtn'),
+                overlay: document.getElementById('overlay'),
+                tooltip: document.getElementById('reservationTooltip'),
+                currentDateEl: document.getElementById('currentDate'),
+                currentTimeEl: document.getElementById('currentTime'),
+                newReservationBtn: document.getElementById('newReservationBtn'),
+                reservationFormContainer: document.getElementById('reservationFormContainer'),
+                reservationForm: document.getElementById('reservationForm'),
+                cancelFormBtn: document.getElementById('cancelFormBtn'),
+                phoneNumberInput: document.getElementById('phoneNumber'),
+                reservationCodeInput: document.getElementById('reservationCode'),
+                notesCheckbox: document.getElementById('notesCheckbox'),
+                notesContainer: document.getElementById('notesContainer'),
+                calendarHeader: document.getElementById('calendar-header'),
+                dateLabels: document.getElementById('date-labels'),
+                timelineView: document.getElementById('timeline-view'),
+                timelineSlotsEl: document.getElementById('timeline-slots'),
+                gridView: document.getElementById('grid-view'),
+                yearViewEl: document.getElementById('year-view'),
+                zoomInBtn: document.getElementById('zoomInBtn'),
+                zoomOutBtn: document.getElementById('zoomOutBtn'),
+                prevBtn: document.getElementById('prevBtn'),
+                nextBtn: document.getElementById('nextBtn'),
+                currentViewLabel: document.getElementById('currentViewLabel'),
+                viewTitle: document.getElementById('viewTitle')
+            };
+
+            // Helper function to get a consistent YYYY-MM-DD string from a date
+            function toLocalDateString(date) {
+                const year = date.getFullYear();
+                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                const day = date.getDate().toString().padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+
+            function renderCalendar() {
+                const view = zoomLevels[currentZoomIndex];
+                dom.currentViewLabel.textContent = view;
+                updateViewTitle();
+                [dom.timelineView, dom.gridView, dom.yearViewEl].forEach(el => el.classList.add('hidden'));
+                dom.calendarHeader.classList.add('hidden');
+                if (view === 'Year') renderYearView();
+                else if (view === 'Month' || view === 'Week') renderGridView();
+                else if (view === 'Day') renderTimelineView();
+            }
+
+            function renderGridView() {
+                dom.gridView.classList.remove('hidden');
+                dom.calendarHeader.classList.remove('hidden');
+                dom.gridView.innerHTML = '';
+                dom.dateLabels.innerHTML = '';
+                dom.dateLabels.className = 'calendar-header-grid';
+                'Sun Mon Tue Wed Thu Fri Sat'.split(' ').forEach(day => {
+                    const dayLabel = document.createElement('div');
+                    dayLabel.className = 'text-center font-bold p-2 border-b border-l border-slate-700 text-slate-400';
+                    dayLabel.textContent = day;
+                    dom.dateLabels.appendChild(dayLabel);
+                });
+                const view = zoomLevels[currentZoomIndex];
+                const startDate = new Date(displayDate);
+                let daysToRender, currentMonth;
+                if (view === 'Week') {
+                    startDate.setDate(startDate.getDate() - startDate.getDay());
+                    daysToRender = 7;
+                } else {
+                    startDate.setDate(1);
+                    const firstDayOfWeek = startDate.getDay();
+                    startDate.setDate(startDate.getDate() - firstDayOfWeek);
+                    daysToRender = 42;
+                    currentMonth = displayDate.getMonth();
+                }
+
+                const reservedDays = new Set(reservations.map(r => toLocalDateString(r.start)));
+
+                for (let i = 0; i < daysToRender; i++) {
+                    const date = new Date(startDate);
+                    date.setDate(startDate.getDate() + i);
+                    const cell = document.createElement('div');
+                    cell.className = 'day-cell';
+                    if (view === 'Month' && date.getMonth() !== currentMonth) {
+                        cell.classList.add('other-month');
+                    }
+                    cell.innerHTML = `<span>${date.getDate()}</span>`;
+                    cell.onclick = () => {
+                        displayDate = date;
+                        currentZoomIndex = 0;
+                        renderCalendar();
+                    };
+
+                    const currentDateStr = toLocalDateString(date);
+                    const hasReservation = reservedDays.has(currentDateStr);
+
+                    if (hasReservation) {
+                        if (view === 'Week') {
+                            const dayReservations = reservations.filter(r => toLocalDateString(r.start) === currentDateStr);
+                            dayReservations.sort((a, b) => a.start - b.start);
+                            const reservationsContainer = document.createElement('div');
+                            reservationsContainer.className = 'reservations-list-container';
+                            dayReservations.forEach(res => {
+                                const resEl = document.createElement('div');
+                                resEl.className = 'week-view-reservation';
+                                resEl.textContent = `#${res.id}`;
+                                reservationsContainer.appendChild(resEl);
+                            });
+                            cell.appendChild(reservationsContainer);
+                        } else { // Month view
+                            const checkSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                            checkSvg.setAttribute('class', 'month-check-icon animate');
+                            checkSvg.setAttribute('viewBox', '0 0 24 24');
+                            checkSvg.innerHTML = `<path d="M5 13l4 4L19 7" stroke-dasharray="100" stroke-dashoffset="100"></path>`;
+                            cell.appendChild(checkSvg);
+                        }
+                    }
+                    dom.gridView.appendChild(cell);
+                }
+            }
+
+            function renderTimelineView() {
+                dom.timelineView.classList.remove('hidden');
+                dom.calendarHeader.classList.remove('hidden');
+                dom.timelineSlotsEl.innerHTML = '';
+                dom.dateLabels.innerHTML = '';
+                dom.dateLabels.className = 'flex';
+                const dayLabel = document.createElement('div');
+                dayLabel.className = 'text-center font-bold p-2 flex-grow text-white';
+                dayLabel.textContent = displayDate.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' });
+                dom.dateLabels.innerHTML = `<div class="flex-shrink-0" style="width: 64px;"></div>`;
+                dom.dateLabels.appendChild(dayLabel);
+                const hourHeight = 90;
+                const totalHeight = (END_HOUR - START_HOUR) * hourHeight;
+                dom.timelineSlotsEl.style.height = `${totalHeight}px`;
+                for (let hour = START_HOUR; hour <= END_HOUR; hour++) {
+                    const topPos = (hour - START_HOUR) * hourHeight;
+                    if (hour < END_HOUR) {
+                        const timeLabel = document.createElement('div');
+                        timeLabel.className = 'absolute text-xs text-slate-400';
+                        timeLabel.style.top = `${topPos - 8}px`;
+                        timeLabel.style.left = '8px';
+                        const displayHour = hour === 24 ? 0 : hour;
+                        const ampm = hour < 12 || hour === 24 ? 'AM' : 'PM';
+                        const formattedHour = displayHour % 12 === 0 ? 12 : displayHour % 12;
+                        timeLabel.textContent = `${formattedHour}:00 ${ampm}`;
+                        dom.timelineSlotsEl.appendChild(timeLabel);
+                    }
+                    const horizontalLine = document.createElement('div');
+                    horizontalLine.className = 'absolute w-full border-t border-slate-700';
+                    horizontalLine.style.top = `${topPos}px`;
+                    horizontalLine.style.right = '64px';
+                    dom.timelineSlotsEl.appendChild(horizontalLine);
+                }
+                const dayReservations = reservations.filter(r => r.start.toDateString() === displayDate.toDateString());
+                layoutAndRenderDay(dayReservations);
+            }
+
+            function layoutAndRenderDay(dayReservations) {
+                if (!dayReservations || dayReservations.length === 0) return;
+                dayReservations.forEach(res => { res.end = new Date(res.start.getTime() + res.duration * 60000); });
+                dayReservations.sort((a, b) => a.start - b.start);
+                let columns = [];
+                for (const res of dayReservations) {
+                    let placed = false;
+                    for (const col of columns) {
+                        if (col.length === 0 || col[col.length - 1].end <= res.start) {
+                            col.push(res);
+                            placed = true;
+                            break;
+                        }
+                    }
+                    if (!placed) columns.push([res]);
+                }
+
+                const NOTE_MAX_WIDTH = 180;
+                const NOTE_MIN_WIDTH = 60;
+                const totalColumns = columns.length;
+                const availableWidth = dom.timelineView.clientWidth - 64;
+
+                let eventWidth = availableWidth / totalColumns;
+
+                if (eventWidth > NOTE_MAX_WIDTH) {
+                    eventWidth = NOTE_MAX_WIDTH;
+                }
+
+                if (eventWidth < NOTE_MIN_WIDTH) {
+                    eventWidth = NOTE_MIN_WIDTH;
+                    const requiredWidth = totalColumns * eventWidth + 64;
+                    dom.timelineSlotsEl.style.minWidth = `${requiredWidth}px`;
+                } else {
+                    dom.timelineSlotsEl.style.minWidth = '100%';
+                }
+
+
+                columns.forEach((col, colIndex) => {
+                    col.forEach(res => renderSingleReservation(res, colIndex, eventWidth));
+                });
+            }
+
+            function renderSingleReservation(details, colIndex, eventWidth) {
+                const hourHeight = 90;
+                const minutesFromStart = (details.start.getHours() - START_HOUR) * 60 + details.start.getMinutes();
+                if (minutesFromStart < 0) return;
+
+                const height = (details.duration / 60) * hourHeight;
+                const topPos = (minutesFromStart / 60) * hourHeight;
+
+
+                const eventLeft = 64 + (colIndex * eventWidth);
+                const minWidthForNote = 100;
+                const eventBlock = document.createElement('div');
+
+                eventBlock.style.top = `${topPos}px`;
+                eventBlock.style.left = `${eventLeft}px`;
+                eventBlock.style.width = `${eventWidth - 4}px`;
+
+
+                if (eventWidth >= minWidthForNote) {
+                    eventBlock.className = 'reservation-note';
+                    if (details.guests > 6) {
+                        eventBlock.classList.add('large-party');
+                    }
+                    const displayHeight = Math.max(height, 90);
+                    eventBlock.style.height = `${displayHeight}px`;
+                    eventBlock.innerHTML = `
+                        <div class="reservation-pin"></div>
+                        <div class="flex flex-col h-full justify-between">
+                            <div>
+                                <p class="font-bold text-slate-800 text-sm">#${details.id}</p>
+                                <p class="text-slate-600 text-sm break-words">${details.name}</p>
+                                ${details.notes ? `<p class="text-xs text-slate-500 italic pt-1 border-t border-slate-300 mt-1 break-words">${details.notes}</p>` : ''}
+                            </div>
+                            <div>
+                                <p class="text-xs text-slate-500 pt-1">${details.guests} Guests</p>
+                                <p class="text-xs text-slate-500 font-semibold">${details.start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    eventBlock.className = 'reservation-compact';
+                    eventBlock.style.height = `${height}px`;
+                    eventBlock.innerHTML = `<p class="font-bold text-white text-xs text-center">#${details.id}</p>`;
+                    eventBlock.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        showTooltip(e.currentTarget, details);
+                    });
+                }
+                dom.timelineSlotsEl.appendChild(eventBlock);
+            }
+
+            function showTooltip(targetElement, details) {
+                dom.tooltip.innerHTML = `
+                    <p class="font-bold text-white">#${details.id} - ${details.name}</p>
+                    <p class="text-sm text-slate-300">${details.guests} Guests</p>
+                    <p class="text-sm text-slate-400">${details.start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })} (${details.duration} min)</p>
+                    ${details.notes ? `<p class="text-xs mt-2 pt-2 border-t border-slate-700 text-slate-400">Note: ${details.notes}</p>` : ''}
+                `;
+                const rect = targetElement.getBoundingClientRect();
+                dom.tooltip.style.left = `${rect.left}px`;
+                dom.tooltip.style.top = `${rect.bottom + 8}px`;
+                dom.tooltip.classList.remove('hidden');
+            }
+
+            function hideTooltip() {
+                dom.tooltip.classList.add('hidden');
+            }
+
+            function renderYearView() {
+                dom.yearViewEl.classList.remove('hidden');
+                dom.calendarHeader.classList.add('hidden');
+                dom.yearViewEl.innerHTML = '';
+
+                const reservedDays = new Set(reservations.map(r => toLocalDateString(r.start)));
+                const startYear = displayDate.getFullYear();
+
+                for (let i = 0; i < 6; i++) {
+                    const year = startYear + i;
+
+                    const yearTitle = document.createElement('h2');
+                    yearTitle.className = 'text-3xl font-bold text-white px-4 pt-8';
+                    yearTitle.textContent = year;
+                    dom.yearViewEl.appendChild(yearTitle);
+
+                    const yearGrid = document.createElement('div');
+                    yearGrid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 px-4';
+
+                    for (let month = 0; month < 12; month++) {
+                        const monthCard = document.createElement('div');
+                        monthCard.className = 'month-card';
+                        monthCard.onclick = () => {
+                            displayDate.setFullYear(year, month, 1);
+                            currentZoomIndex = 2; // Zoom to month view
+                            renderCalendar();
+                        };
+
+                        const firstDayOfMonth = new Date(year, month, 1);
+                        const monthName = firstDayOfMonth.toLocaleDateString('en-US', { month: 'long' });
+
+                        let daysHTML = `<div class="font-bold text-center text-white mb-2">${monthName}</div><div class="month-grid">`;
+                        'S M T W T F S'.split(' ').forEach(d => daysHTML += `<div class="month-day day-header">${d}</div>`);
+
+                        let firstDayOfWeek = firstDayOfMonth.getDay();
+                        for (let j = 0; j < firstDayOfWeek; j++) {
+                            daysHTML += '<div></div>';
+                        }
+
+                        const daysInMonth = new Date(year, month + 1, 0).getDate();
+                        for (let day = 1; day <= daysInMonth; day++) {
+                            const currentDate = new Date(year, month, day);
+                            const currentDateStr = toLocalDateString(currentDate);
+                            const isReserved = reservedDays.has(currentDateStr);
+                            daysHTML += `<div class="month-day ${isReserved ? 'day-reserved' : ''}">${day}</div>`;
+                        }
+                        daysHTML += '</div>';
+                        monthCard.innerHTML = daysHTML;
+                        yearGrid.appendChild(monthCard);
+                    }
+                    dom.yearViewEl.appendChild(yearGrid);
+                }
+            }
+
+            function updateViewTitle() {
+                const view = zoomLevels[currentZoomIndex];
+                if (view === 'Year') dom.viewTitle.textContent = displayDate.toLocaleDateString('en-US', { year: 'numeric' });
+                else if (view === 'Month') dom.viewTitle.textContent = displayDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                else if (view === 'Week') {
+                    const weekStart = new Date(displayDate);
+                    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+                    dom.viewTitle.textContent = `Week of ${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+                }
+                else dom.viewTitle.textContent = displayDate.toLocaleDateString('en-US', { day: 'numeric', month: 'long' });
+            }
+
+            function updateClock() {
+                const now = new Date();
+                const optionsDate = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                dom.currentDateEl.textContent = now.toLocaleDateString('en-US', optionsDate);
+                dom.currentTimeEl.textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+            }
+
+            function navigate(direction) {
+                const view = zoomLevels[currentZoomIndex];
+                const dir = direction === 'next' ? 1 : -1;
+                if (view === 'Day') displayDate.setDate(displayDate.getDate() + dir);
+                if (view === 'Week') displayDate.setDate(displayDate.getDate() + (dir * 7));
+                if (view === 'Month') displayDate.setMonth(displayDate.getMonth() + dir);
+                if (view === 'Year') displayDate.setFullYear(displayDate.getFullYear() + dir);
+                renderCalendar();
+            }
+
+            function toggleSidebar() {
+                dom.sidebar.classList.toggle('-translate-x-full');
+                dom.overlay.classList.toggle('hidden');
+            }
+
+            function showConfirmationToast(newReservation) {
+                const toastNode = document.createElement('div');
+                toastNode.className = 'text-white p-4';
+
+                const formattedTime = newReservation.start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                const formattedDate = newReservation.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+                toastNode.innerHTML = `
+                    <p class="font-bold text-lg mb-2">Confirm Reservation?</p>
+                    <p><span class="font-semibold">Name:</span> ${newReservation.name}</p>
+                    <p><span class="font-semibold">Date:</span> ${formattedDate}</p>
+                    <p><span class="font-semibold">Time:</span> ${formattedTime}</p>
+                    <p><span class="font-semibold">Guests:</span> ${newReservation.guests}</p>
+                `;
+
+                const buttonContainer = document.createElement('div');
+                buttonContainer.className = 'flex space-x-2 mt-4';
+
+                const confirmBtn = document.createElement('button');
+                confirmBtn.className = 'flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition';
+                confirmBtn.textContent = 'Confirm';
+
+                const editBtn = document.createElement('button');
+                editBtn.className = 'flex-1 bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded-lg transition';
+                editBtn.textContent = 'Edit';
+
+                buttonContainer.appendChild(editBtn);
+                buttonContainer.appendChild(confirmBtn);
+                toastNode.appendChild(buttonContainer);
+
+                const toast = Toastify({
+                    node: toastNode,
+                    duration: -1,
+                    gravity: "top",
+                    position: "center",
+                    close: false,
+                });
+
+                confirmBtn.addEventListener('click', () => {
+                    reservations.push(newReservation);
+                    reservations.sort((a, b) => a.start - b.start);
+                    renderCalendar();
+                    dom.cancelFormBtn.click();
+                    toast.hideToast();
+                });
+
+                editBtn.addEventListener('click', () => {
+                    toast.hideToast();
+                });
+
+                toast.showToast();
+            }
+
+            // --- EVENT LISTENERS ---
+            document.addEventListener('click', hideTooltip);
+            dom.menuBtn.addEventListener('click', toggleSidebar);
+            dom.closeBtn.addEventListener('click', toggleSidebar);
+            dom.overlay.addEventListener('click', toggleSidebar);
+
+            dom.zoomInBtn.addEventListener('click', () => { if (currentZoomIndex > 0) { currentZoomIndex--; renderCalendar(); } });
+
+            dom.zoomOutBtn.addEventListener('click', () => {
+                if (currentZoomIndex < zoomLevels.length - 1) {
+                    currentZoomIndex++;
+                    // If we are zooming out to the year view, reset the date to today
+                    if (zoomLevels[currentZoomIndex] === 'Year') {
+                        displayDate = new Date();
+                        displayDate.setHours(0, 0, 0, 0);
+                    }
+                    renderCalendar();
+                }
+            });
+
+            dom.prevBtn.addEventListener('click', () => navigate('prev'));
+            dom.nextBtn.addEventListener('click', () => navigate('next'));
+
+            dom.newReservationBtn.addEventListener('click', () => {
+                dom.reservationFormContainer.classList.remove('hidden');
+                if (window.innerWidth < 768) {
+                    toggleSidebar();
+                }
+            });
+
+            dom.cancelFormBtn.addEventListener('click', () => {
+                dom.reservationForm.reset();
+                dom.reservationCodeInput.value = '';
+                dom.notesContainer.classList.add('hidden');
+                dom.reservationFormContainer.classList.add('hidden');
+            });
+
+            dom.phoneNumberInput.addEventListener('input', () => {
+                const phone = dom.phoneNumberInput.value.replace(/\D/g, ''); // Remove non-digits
+                if (phone.length >= 4) {
+                    dom.reservationCodeInput.value = phone.slice(-4);
+                } else {
+                    dom.reservationCodeInput.value = '';
+                }
+            });
+
+            dom.notesCheckbox.addEventListener('change', () => {
+                dom.notesContainer.classList.toggle('hidden', !dom.notesCheckbox.checked);
+            });
+
+            dom.reservationForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const startDate = new Date(`${document.getElementById('reservationDate').value}T${document.getElementById('reservationTime').value}`);
+
+                const newReservation = {
+                    id: dom.reservationCodeInput.value,
+                    name: document.getElementById('clientName').value,
+                    guests: parseInt(document.getElementById('numGuests').value),
+                    phone: dom.phoneNumberInput.value,
+                    notes: dom.notesCheckbox.checked ? document.getElementById('notesTextarea').value : '',
+                    start: startDate,
+                    duration: 90 // Default duration, since it's removed from form
+                };
+
+                showConfirmationToast(newReservation);
+            });
+            window.addEventListener('resize', renderCalendar);
+
+            // --- INITIALIZATION ---
+            updateClock();
+            renderCalendar();
+            setInterval(updateClock, 1000);
+        });
+    </script>
+</body>
+
+</html>
